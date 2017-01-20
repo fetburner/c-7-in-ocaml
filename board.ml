@@ -1,16 +1,16 @@
 external ( |> ) : 'a -> ('a -> 'b) -> 'b = "%revapply"
 
-type board =
+type t =
   { my_board : int64;
     enemy_board : int64 }
-type t = board
 
-let compare b1 b2 =
+let compare : t -> t -> int = fun b1 b2 ->
   match Int64.compare b1.my_board b2.my_board with
   | 0 -> Int64.compare b1.enemy_board b2.enemy_board
   | n -> n
 
-let to_string c b =
+(* serializer *)
+let to_string : Color.t -> t -> string = fun c b ->
   let (white_board, black_board) =
     match c with
     | Color.White -> (b.my_board, b.enemy_board)
@@ -26,7 +26,8 @@ let to_string c b =
     | _, _ -> raise (Invalid_argument "Board.to_string"))
   |> Array.fold_left ( ^ ) ""
 
-let of_string c s =
+(* deserializer *)
+let of_string : Color.t -> string -> t = fun c s ->
   if String.length s <> 64 then
     raise (Invalid_argument "Board.of_string")
   else
@@ -47,9 +48,10 @@ let of_string c s =
         | Color.White -> { my_board = b1; enemy_board = b2 }
         | Color.Black -> { my_board = b2; enemy_board = b1 })
 
-let flip b = { my_board = b.enemy_board; enemy_board = b.my_board }
+let flip : t -> t = fun b ->
+  { my_board = b.enemy_board; enemy_board = b.my_board }
 
-let population_count bits =
+let population_count : int64 -> int = fun bits ->
   Int64.to_int (List.fold_left (fun bits (mask, shamt) ->
     Int64.add (Int64.logand mask bits) (Int64.logand mask (Int64.shift_right_logical bits shamt))) bits
     [ (0x5555555555555555L, 1);
@@ -59,28 +61,17 @@ let population_count bits =
       (0x0000ffff0000ffffL, 16);
       (0x00000000ffffffffL, 32) ])
 
-let count_disks b =
+let count_disks : t -> int = fun b ->
   population_count (Int64.logor b.my_board b.enemy_board)
 
-let eval weights b =
-  List.map (fun (bits, weight) ->
-    weight
-    * (population_count (Int64.logand bits b.my_board)
-        - population_count (Int64.logand bits b.enemy_board))) weights
-  |> List.fold_left ( + ) 0
+let eval : (int64 * int) list -> t -> int = fun weights b ->
+  List.fold_left ( + ) 0
+    (List.map (fun (bits, weight) ->
+      weight
+      * (population_count (Int64.logand bits b.my_board)
+          - population_count (Int64.logand bits b.enemy_board))) weights)
 
-(* fix with memoization *)
-let memoize (type key) ((module Map) : (module Map.S with type key = key)) f =
-  let memory = ref Map.empty in
-  let rec fix n =
-    try Map.find n !memory
-    with Not_found ->
-      let result = f fix n in
-      memory := Map.add n result !memory;
-      result in
-  fix
-
-let legal_moves_aux b =
+let legal_moves_aux : t -> int64 = fun b ->
   List.map (fun (mask, shifter) ->
     let masked_enemy = Int64.logand b.enemy_board mask in
     Array.make 5 0
@@ -107,7 +98,7 @@ let legal_moves_aux b =
   |> Int64.logand (Int64.lognot b.my_board)
   |> Int64.logand (Int64.lognot b.enemy_board)
 
-let legal_moves b =
+let legal_moves : t -> Move.t list = fun b ->
   let bits = legal_moves_aux b in
   List.fold_left (fun candidates mask ->
     List.concat (List.map (fun bits ->
@@ -122,11 +113,10 @@ let legal_moves b =
       0x5555555555555555L ]
   |> List.map Move.of_bits
 
-let count_legal_moves b =
-  legal_moves_aux b
-  |> population_count
+let count_legal_moves : t -> int = fun b ->
+  population_count (legal_moves_aux b)
 
-let perform_move_aux b m =
+let perform_move_aux : t -> Move.t -> int64 = fun b m ->
   List.map (fun (mask, shifter) ->
     let masked_enemy = Int64.logand b.enemy_board mask in
     let rec loop t =
@@ -154,7 +144,7 @@ let perform_move_aux b m =
       (0x007e7e7e7e7e7e00L, fun t -> Int64.shift_right_logical t 7) ]
   |> List.fold_left Int64.logor 0L
 
-let perform_move m b =
+let perform_move : Move.t -> t -> t = fun  m b ->
   let pos = Move.to_bits m in
   let rev = perform_move_aux b m in
   if rev = 0L

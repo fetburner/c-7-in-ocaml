@@ -2,8 +2,7 @@ type t
 
 val compare : t -> t -> int
 
-(* make = fun column row -> ... *)
-val make : int -> int -> t
+val make : column:int -> row:int -> t
 val column : t -> int
 val row : t -> int
 val to_bits : t -> int64
