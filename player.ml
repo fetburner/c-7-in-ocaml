@@ -20,7 +20,10 @@ let alphabeta eval ( <= ) ( ~- ) successors =
 let alphabeta_reversi eval board n =
   alphabeta
     (fun (route, board) -> (route, eval board))
-    (fun (_, v1) (_, v2)-> v1 <= v2)
+    (fun (_, v1) (_, v2)->
+      match compare v1 v2 with
+      | 0 -> Random.bool ()
+      | n -> n < 0)
     (fun (route, v) -> (route, -v))
     (fun (route, board) ->
       begin match Board.legal_moves board with
@@ -70,7 +73,7 @@ let last_spurt = 20
 
 let play b =
   if Board.count_disks b + last_spurt / 2 <= 64 then
-    alphabeta_reversi (fun b -> Board.eval weight b + Board.count_legal_moves b - Board.count_legal_moves (Board.flip b)) b 7
+    alphabeta_reversi (fun b -> Board.eval weight b + Board.count_legal_moves b - Board.count_legal_moves (Board.flip b)) b 6
   else
     alphabeta_reversi
       (Board.eval [(0xFFFFFFFFFFFFFFFFL, 1)]) b last_spurt
