@@ -152,5 +152,5 @@ let perform_move : Move.t -> t -> t = fun  m b ->
       || Int64.logand pos b.enemy_board <> 0L then
     raise (Invalid_argument "Board.perform_move")
   else
-    { my_board = Int64.logor b.my_board (Int64.logor pos rev);
-      enemy_board = Int64.logxor b.enemy_board rev }
+    { enemy_board = Int64.logor b.my_board (Int64.logor pos rev);
+      my_board = Int64.logxor b.enemy_board rev }

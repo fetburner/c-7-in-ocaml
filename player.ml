@@ -1,6 +1,8 @@
 external ( |> ) : 'a -> ('a -> 'b) -> 'b = "%revapply";;
 
+(* generic implementation of alpha-beta pruning *)
 let alphabeta :
+  (* evaluation function *)
   ('board -> 'value) ->
   ('value -> 'value -> bool) ->
   ('value -> 'value) ->
@@ -26,26 +28,29 @@ let alphabeta :
               maximum alpha nodes in
     alphabeta
 
+(* alpha-beta pruning for reversi *)
 let alphabeta_reversi :
+  (* evaluation function *)
   (Board.t -> int) ->
   Board.t ->
   int ->
   Move.t option
-= fun eval board n ->
+= Random.self_init ();
+  (fun eval board n ->
     alphabeta
       (fun (route, board) -> (route, eval board))
       (fun (_, v1) (_, v2)->
         match compare v1 v2 with
-        | 0 -> Random.bool ()
+        | 0 -> Random.bool () (* randomly choose if both values are equivalent *)
         | n -> n < 0)
       (fun (route, v) -> (route, -v))
       (fun (route, board) ->
-        begin match Board.legal_moves board with
-        | [] -> [(None :: route, Board.flip board)]
-        | moves ->
+        begin match route, Board.legal_moves board with
+        | None :: _, [] -> [] (* both players passed *)
+        | ([] | Some _ :: _), [] -> [(None :: route, Board.flip board)] (* pass *)
+        | route, moves ->
             List.map (fun move ->
-              (Some move :: route,
-               Board.flip (Board.perform_move move board))) moves
+              (Some move :: route, Board.perform_move move board)) moves
         end)
       ~alpha:([], min_int + 1)
       ~beta:([], max_int)
@@ -53,7 +58,7 @@ let alphabeta_reversi :
       n
     |> fst
     |> List.rev
-    |> List.hd
+    |> List.hd)
 
 module IntMap = Map.Make (struct
   type t = int
