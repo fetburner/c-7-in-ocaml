@@ -2,3 +2,5 @@
 *.cmi
 *.cmo
 *.cmx
+request.ml
+server
